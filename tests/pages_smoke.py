@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory() as folder:
             expect(page.locator('main')).to_contain_text('PDF upload is unavailable on this hosted website')
             expect(page.locator('[data-action="import-pdf"]')).to_have_count(0)
             with page.expect_download() as downloaded:
-                page.get_by_role('button', name='Export backup', exact=True).click()
+                page.get_by_role('button', name='Export backup').click()
             backup = Path(folder)/'backup.json'
             downloaded.value.save_as(backup)
             page.locator('#backup-file').set_input_files(backup)
