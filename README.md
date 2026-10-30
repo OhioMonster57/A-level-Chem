@@ -89,3 +89,28 @@ python3 tests/browser_smoke.py
 ```
 
 The browser smoke test uses an isolated disposable context and writes fixtures/screenshots to `/tmp/element-tests`. It checks filters, progress persistence, safe evidence handling, source checks, review scheduling, practical records, backup round trip and invalid input, mobile layout, manual additions, synthetic PDF import, and the progress-preserving official-checklist migration and archive export.
+
+## GitHub Pages hosting
+
+The workflow in `.github/workflows/pages.yml` validates the checklist, publishes
+only the `app` folder, and deploys on pushes to `main` or manual runs.
+
+1. In the GitHub repository, open **Settings → Pages**.
+2. Set **Source** to **GitHub Actions**. Your account/repository must support Pages.
+3. Open **Actions → Deploy chemistry tracker to GitHub Pages → Run workflow**
+   if the initial push ran before Pages was enabled.
+4. When deployment succeeds, open the website URL shown under **Settings → Pages**.
+
+The expected project URL is `https://ohiomonster57.github.io/A-level-Chem/`;
+it is live only after a successful deployment. All app assets and source PDF links
+are relative, so they work under the repository path.
+
+GitHub Pages hosts static files and cannot run the Python PDF importer. The
+workflow enables hosted mode in its output artifact; the UI explains that PDF
+import needs the local app. The complete bundled checklist, progress, notes,
+revision queue, practical records and JSON backup import/export work on Pages.
+No API keys or additional repository secrets are required by this workflow.
+
+Progress is stored in your browser for the hosted site's origin. It does not
+sync automatically with your locally run copy; export and restore a JSON backup
+to transfer progress. Repository visibility and Pages settings are managed in GitHub.
