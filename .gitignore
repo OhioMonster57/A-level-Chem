@@ -4,3 +4,6 @@ __pycache__/
 test-results/
 .env
 .env.*
+
+study-data/
+Element-Data/

@@ -4,7 +4,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT=Path(__file__).resolve().parents[1]
-FILES=['run_local.py','server.py','grading.py','START-WINDOWS.cmd','START-MAC.command','LOCAL-START-HERE.md',
+FILES=['run_local.py','server.py','grading.py','work_store.py','START-WINDOWS.cmd','START-MAC.command','LOCAL-START-HERE.md',
        'app/index.html','app/style.css','app/app.js','app/work.js','app/data.js','app/official-data.js',
        'app/official-data.json','app/coverage-audit.json','app/specification.pdf','app/deployment-config.js']
 

@@ -60,7 +60,7 @@ Importing this exact uploaded PDF recognises its hash and offers the official ch
 
 ## Data and privacy
 
-Study data stays in localStorage in the current browser origin. There is no account, database, analytics, external AI service or automatic device sync. A different browser, device, hostname or port has separate storage. Export backups regularly; clearing browser data removes local progress.
+When using plain `server.py` or GitHub Pages, checklist data stays in localStorage in the current browser origin. The updated `run_local.py` launcher additionally persists the checklist and work in the local study folder described below. There is no account, database, analytics, external AI service or automatic device sync. A different browser, device, hostname or port has separate storage. Export backups regularly; clearing browser data removes local progress.
 
 Uploaded PDFs are processed by `pdftotext` on this app's server in a temporary directory and deleted afterwards. The bundled source PDF is intentionally retained as a reference. This is a local development server without production authentication; public hosting needs its own deployment configuration.
 
@@ -120,7 +120,7 @@ to transfer progress. Repository visibility and Pages settings are managed in Gi
 Open **Marked work** to upload up to six photographs of completed work or use a
 phone camera. The app resizes images (up to 2000 pixels on the longest edge),
 removes the original image metadata through canvas encoding, and stores the photos
-in this browser's **IndexedDB**. Uploads remain available before AI is connected.
+in this browser's **IndexedDB** on the hosted website, or as real files in the selected study folder when using the updated local launcher. Uploads remain available before AI is connected.
 
 With a configured backend, **Read & mark these photos** sends only that upload to
 the AI provider after explicit consent. Marking identifies questions/subparts,
@@ -145,7 +145,7 @@ Checklists' self-assessed mastery statuses do not change automatically.
 
 ### History, estimates and backups
 
-The app retains all uploads and assessment attempts on the current browser/device.
+The hosted app retains uploads/attempts in browser IndexedDB; the local launcher retains them in its study folder and reloads them independently of browser cache.
 Accepted work contributes to a percentage evidence score and feedback panel on each
 topic. This is separate from the manual study checklist. Scores weight recency
 (90-day half-life), difficulty (1 / 1.25 / 1.5), reading confidence and the topic's
@@ -162,7 +162,7 @@ heuristics are transparent in the UI; the score is not a whole-topic mastery cla
 confidence interval, calibrated exam grade or prediction. The model does not have
 an independent persistent memory; your saved history drives the topic aggregation.
 
-Use **Export work history** for a JSON backup including the photos and assessments.
+Use **Export work history** for a JSON backup including the photos and assessments. In local folder mode, backing up the entire study folder also preserves the records and actual image files.
 The existing **Export backup** button backs up the checklist only. Work-history
 restore validates the whole file and merges new upload IDs without overwriting
 existing IDs. The backend address is stored locally; its access token is
@@ -184,8 +184,7 @@ backup, or a committed `.env` file.** The Python server reads `STUDY_AI_API_KEY`
 (or an existing `OPENAI_API_KEY`) from its server environment. It calls the OpenAI
 Responses API with image inputs and a strict JSON schema, with `store: false`.
 That setting is not a claim of zero provider retention; provider data policies still
-apply. Student photos, prompts and responses are not written to server disk or
-application logs; photos and returned marking exist transiently during the request.
+apply. The remotely hosted AI gateway does not write photos/prompts/responses to disk or application logs. The local edition intentionally writes study records, originals and crops to its chosen folder; API keys are never saved there. For remote requests, photos and returned marking exist transiently during the request.
 Normal HTTP access logging includes paths/statuses, not request bodies/tokens.
 
 ### Connect the hosted website to a private backend (Render)
@@ -247,3 +246,35 @@ It never saves the API key to disk. No Render deployment or extra Python package
 are needed for photo marking. `pdftotext` remains optional for importing a different
 specification PDF. Live provider marking still depends on a valid key, model access
 and API billing; all grading remains provisional.
+
+## Folder persistence, topic libraries and progress charts
+
+The local launcher defaults to `~/Documents/Element-Chemistry` and supports
+`--data-dir`. It checks that the directory is writable before opening the app.
+Local-only authenticated routes persist complete records atomically, save actual
+uncropped uploaded photo files (the app-resized copies), and write question JSON/cropped JPEGs under `topics/topic-NN`.
+Mixed-topic questions appear in each mapped topic. Browser work can be copied to
+the folder through the migration button; browser originals are not removed.
+
+Checklist changes are also mirrored to `checklist.json`. On startup, the saved
+folder checklist is loaded in a fresh browser. A newer timestamped browser copy
+can be recovered to the folder; differing previous checklist copies are preserved
+under `backups`. No credentials are included in those records. Hosted GitHub Pages
+continues to use browser storage, not the local filesystem.
+
+Each topic now has a question library showing every saved attempt and its crop,
+score/review status and feedback. The overview charts show the four manual
+confidence states, their distribution across topics, and coverage of main
+objectives by accepted question evidence. Self-assessment, evidence coverage and
+AI score are distinct measures.
+
+Marking uses XMLHttpRequest to show actual upload byte progress where available,
+then an indeterminate waiting indicator and elapsed time. It never invents an AI
+completion percentage. Saving crops/records is a separate visible phase. Errors
+and successful result counts remain on the page until dismissed, as well as being
+stored on the upload. No analysis output means no fabricated score.
+
+`tests/disk_work_smoke.py` verifies originals/crops on disk, progress/error UI,
+topic library, confidence charts, and restoration after both a process restart
+and a new browser context. Its provider replies are explicitly mocked. Live AI
+quality still requires a real configured account and remains provisional.

@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory() as folder:
     with socket.socket() as sock:
         sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
     env={**os.environ,'STUDY_AI_API_KEY':'local-smoke-test-not-a-real-key','PYTHONUNBUFFERED':'1'}
-    process=subprocess.Popen([sys.executable,'run_local.py','--port',str(port),'--no-browser'],cwd=app,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    process=subprocess.Popen([sys.executable,'run_local.py','--port',str(port),'--no-browser','--data-dir',str(folder/'saved-study')],cwd=app,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     try:
         url=f'http://127.0.0.1:{port}'
         for _ in range(50):

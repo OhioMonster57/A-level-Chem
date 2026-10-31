@@ -4,6 +4,7 @@ import io
 import json
 import os
 import threading
+import tempfile
 import unittest
 import urllib.error
 import urllib.request
@@ -110,6 +111,14 @@ class GatewayTests(unittest.TestCase):
             bad=urllib.request.Request(self.url+'/api/local-session',headers={'X-Element-Local':'1','Origin':'https://untrusted.example'})
             with self.assertRaises(urllib.error.HTTPError) as error:urllib.request.urlopen(bad)
             self.assertEqual(error.exception.code,403)
+
+    def test_disk_routes_require_local_origin_and_token(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ,{'STUDY_LOCAL_MODE':'1','STUDY_DATA_DIR':folder,'STUDY_ACCESS_TOKEN':'local-disk-token'}):
+            self.assertEqual(self.call('/api/local-work',origin=self.url)[0],403)
+            self.assertEqual(self.call('/api/local-work',token='local-disk-token',origin='https://untrusted.example')[0],403)
+            status,body,_=self.call('/api/local-work',token='local-disk-token',origin=self.url)
+            self.assertEqual(status,200)
+            self.assertEqual(body['submissions'],[])
 
     def test_unconfigured_backend_is_honest(self):
         with patch.dict(os.environ,{'STUDY_AI_API_KEY':'','OPENAI_API_KEY':'','STUDY_ACCESS_TOKEN':''}):

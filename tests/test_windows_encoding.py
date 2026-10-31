@@ -13,7 +13,7 @@ class WindowsEncodingTests(unittest.TestCase):
                 encoding='cp1252'
             return original_open(path,mode,buffering,encoding,errors,newline)
         source=Path(grading.__file__).parent/'app/official-data.json'
-        with patch.object(Path,'open',windows_open):
+        with patch.object(Path,'open',windows_open), patch('io.text_encoding',lambda encoding,stacklevel=2: 'cp1252' if encoding in (None,'locale') else encoding):
             # Reproduce the actual reported Windows failure with an implicit encoding.
             with self.assertRaises(UnicodeDecodeError):source.read_text()
             loaded=importlib.reload(grading)

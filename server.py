@@ -13,6 +13,7 @@ import threading
 import time
 from urllib.parse import urlsplit
 import grading
+from work_store import WorkStore, StoreError
 
 ROOT = Path(__file__).parent / 'app'
 MAX_PDF = 15 * 1024 * 1024
@@ -111,6 +112,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self.path == '/api/local-checklist':
+            return self.local_work('checklist-get')
+        if self.path == '/api/local-work':
+            return self.local_work('get')
         if self.path == '/api/local-session':
             host = self.headers.get('Host', '')
             expected = f'127.0.0.1:{self.server.server_port}'
@@ -120,7 +125,9 @@ class Handler(SimpleHTTPRequestHandler):
                     or self.headers.get('X-Element-Local') != '1'
                     or (self.headers.get('Origin') and self.headers['Origin'] != 'http://'+expected)):
                 return self.respond(403, {'error': 'Local automatic connection is unavailable.'})
-            return self.respond(200, {'accessToken': os.environ.get('STUDY_ACCESS_TOKEN', ''), 'configured': bool(grading.ai_key())})
+            return self.respond(200, {'accessToken': os.environ.get('STUDY_ACCESS_TOKEN', ''), 'configured': bool(grading.ai_key()),
+                                      'diskStorage': bool(os.environ.get('STUDY_DATA_DIR')),
+                                      'dataDir': os.environ.get('STUDY_DATA_DIR', '')})
         if self.path == '/api/health':
             if not self.origin_allowed():
                 return self.respond(403, {'error': 'Website origin not allowed.'})
@@ -132,6 +139,47 @@ class Handler(SimpleHTTPRequestHandler):
                                       'model': os.environ.get('STUDY_AI_MODEL', 'gpt-4.1'),
                                       'rubric_version': grading.RUBRIC_VERSION})
         return super().do_GET()
+
+    def local_work(self, action):
+        expected = f'127.0.0.1:{self.server.server_port}'
+        token = os.environ.get('STUDY_ACCESS_TOKEN', '')
+        if (os.environ.get('STUDY_LOCAL_MODE') != '1' or not os.environ.get('STUDY_DATA_DIR')
+                or self.client_address[0] != '127.0.0.1' or self.headers.get('Host') != expected
+                or (self.headers.get('Origin') and self.headers['Origin'] != 'http://'+expected)
+                or not token or not hmac.compare_digest(self.headers.get('Authorization','').encode(),('Bearer '+token).encode())):
+            return self.respond(403, {'error': 'Local folder storage is available only through your local launcher.'})
+        try:
+            store = WorkStore(os.environ['STUDY_DATA_DIR'])
+            if action == 'checklist-get':
+                path=store.path('checklist.json')
+                return self.respond(200, {'checklist': json.loads(path.read_text(encoding='utf-8')) if path.exists() else None})
+            if action == 'get':
+                return self.respond(200, {'submissions': store.all(), 'dataDir': str(store.root)})
+            size = int(self.headers.get('Content-Length', '0'))
+            if not 0 < size <= 80*1024*1024:
+                return self.respond(413, {'error': 'The work record is too large to save. Use fewer photos per upload.'})
+            payload = json.loads(self.rfile.read(size))
+            if action == 'checklist-save':
+                from work_store import atomic
+                checklist=payload.get('checklist')
+                if not isinstance(checklist,dict) or checklist.get('version')!=1 or not isinstance(checklist.get('records'),dict):
+                    return self.respond(400, {'error':'Invalid checklist record.'})
+                previous=payload.get('previous')
+                if previous is not None:
+                    atomic(store.path('backups','checklist-browser-'+__import__('uuid').uuid4().hex+'.json'),json.dumps(previous,ensure_ascii=False,indent=2).encode('utf-8'))
+                atomic(store.path('checklist.json'),json.dumps(checklist,ensure_ascii=False,indent=2).encode('utf-8'))
+                return self.respond(200, {'saved':True})
+            result = store.delete(payload.get('id')) if action == 'delete' else store.save(payload)
+            return self.respond(200, result)
+        except (StoreError, ValueError, UnicodeError) as error:
+            return self.respond(400, {'error': str(error)[:300]})
+        except OSError:
+            return self.respond(500, {'error': 'Could not write the study folder. Check disk space and folder permissions. Your previous saved record has not been replaced.'})
+
+    def do_DELETE(self):
+        if self.path == '/api/local-work':
+            return self.local_work('delete')
+        return self.respond(404, {'error':'Not found'})
 
     def mark_work(self):
         if not self.origin_allowed():
@@ -155,20 +203,28 @@ class Handler(SimpleHTTPRequestHandler):
             if len(GRADE_TIMES) >= 12:
                 return self.respond(429, {'error': 'This backend has reached its limit of 12 marking sessions per hour. Try again later.'})
             payload = json.loads(self.rfile.read(size))
-            grading.validate_pages(payload)
+            pages = grading.validate_pages(payload)
             GRADE_TIMES.append(now)
+            print(f'Marking: received {len(pages)} photo(s); waiting for AI service.', flush=True)
             result = grading.grade(payload)
+            print(f'Marking: {len(result.get("questions", []))} assessment(s) returned; sending result to browser.', flush=True)
             return self.respond(200, result)
         except grading.GradingError as error:
+            print(f'Marking failed ({error.status}): {error}', flush=True)
             return self.respond(error.status, {'error': str(error)})
         except (json.JSONDecodeError, UnicodeDecodeError):
             return self.respond(400, {'error': 'The marking request was not valid JSON.'})
-        except Exception:
+        except Exception as error:
+            print(f'Marking failed: {type(error).__name__}. No question text or credentials logged.', flush=True)
             return self.respond(502, {'error': 'Marking could not be completed. Your saved photos and history are unchanged.'})
         finally:
             GRADE_LOCK.release()
 
     def do_POST(self):
+        if self.path == '/api/local-checklist':
+            return self.local_work('checklist-save')
+        if self.path == '/api/local-work':
+            return self.local_work('save')
         if self.path == '/api/mark-work':
             return self.mark_work()
         if self.path != '/api/import-spec':

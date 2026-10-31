@@ -2,6 +2,7 @@
 import argparse
 import getpass
 import os
+from pathlib import Path
 import secrets
 import threading
 import warnings
@@ -12,6 +13,7 @@ from http.server import ThreadingHTTPServer
 def main():
     parser = argparse.ArgumentParser(description='Run your chemistry tracker locally, with a private API-key prompt.')
     parser.add_argument('--port', type=int, default=3000)
+    parser.add_argument('--data-dir', default=str(Path.home() / 'Documents' / 'Element-Chemistry'), help='Folder for local photos, crops and marking history.')
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
@@ -36,7 +38,17 @@ def main():
         os.environ['STUDY_AI_API_KEY'] = key
     os.environ['STUDY_ACCESS_TOKEN'] = secrets.token_urlsafe(32)
     os.environ['STUDY_LOCAL_MODE'] = '1'
+    os.environ['STUDY_DATA_DIR'] = str(Path(args.data_dir).expanduser().resolve())
     os.environ['STUDY_ALLOWED_ORIGIN'] = f'http://127.0.0.1:{args.port}'
+    try:
+        from work_store import WorkStore, atomic
+        store = WorkStore(os.environ['STUDY_DATA_DIR'])
+        probe = store.path('.write-check')
+        atomic(probe, b'local storage check')
+        probe.unlink()
+    except OSError:
+        print('Cannot write your study folder. Run again with --data-dir pointing to a writable folder.')
+        return 1
     from server import Handler
     try:
         httpd = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
@@ -45,6 +57,7 @@ def main():
         return 1
     address = f'http://127.0.0.1:{args.port}/#work'
     print(f'\nOpen {address}')
+    print('Study files: '+os.environ['STUDY_DATA_DIR'])
     print('Keep this terminal open. Press Ctrl+C to stop.')
     if not key:
         print('No API key supplied: the checklist and stored work are available; automatic marking is disabled.')
