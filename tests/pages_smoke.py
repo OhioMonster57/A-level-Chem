@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as folder:
     site = Path(folder) / 'A-level-Chem'
     shutil.copytree(ROOT / 'app', site)
-    (site / 'deployment-config.js').write_text('window.ELEMENT_DEPLOYMENT = { staticHosting: true };\n')
+    (site / 'deployment-config.js').write_text('window.ELEMENT_DEPLOYMENT = { staticHosting: true };\n', encoding='utf-8')
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(SimpleHTTPRequestHandler, directory=folder))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

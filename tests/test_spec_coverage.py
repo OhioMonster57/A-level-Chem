@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 class OfficialCoverageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.data = json.loads((ROOT / 'app/official-data.json').read_text())
+        cls.data = json.loads((ROOT / 'app/official-data.json').read_text(encoding='utf-8'))
         cls.rows = cls.data['objectives']
         cls.by_ref = {o['reference']: o for o in cls.rows}
         cls.text = subprocess.run(['pdftotext', '-layout', str(ROOT / 'app/specification.pdf'), '-'],
-                                  check=True, text=True, capture_output=True).stdout
+                                  check=True, text=True, encoding='utf-8', capture_output=True).stdout
 
     def test_pdf_identity_and_all_topic_endpoints(self):
         self.assertEqual(hashlib.sha256((ROOT / 'app/specification.pdf').read_bytes()).hexdigest(),

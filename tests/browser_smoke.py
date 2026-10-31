@@ -63,14 +63,14 @@ with sync_playwright() as p:
         page.get_by_role('button', name='Export backup').click()
     target = ARTIFACTS/'backup.json'
     download.value.save_as(target)
-    backup = json.loads(target.read_text())
+    backup = json.loads(target.read_text(encoding='utf-8'))
     assert backup['records'][objective_id]['status'] == 'confident'
     assert backup['practicals']['1']['complete'] is True
     page.locator('#backup-file').set_input_files(target)
     page.get_by_role('button', name='Replace with backup').click()
     expect(page.locator('#toast')).to_contain_text('Backup restored')
     bad = ARTIFACTS/'invalid.json'
-    bad.write_text('{"version":1,"objectives":[],"records":{}}')
+    bad.write_text('{"version":1,"objectives":[],"records":{}}', encoding='utf-8')
     page.locator('#backup-file').set_input_files(bad)
     expect(page.locator('#toast')).to_contain_text('not a supported')
     assert json.loads(page.evaluate("localStorage.getItem('element-9ch0-v1')"))['records'][objective_id]['status'] == 'confident'
@@ -136,7 +136,7 @@ with sync_playwright() as p:
         page.get_by_role('button', name='Export previous checklist').click()
     archive = ARTIFACTS/'archived.json'
     archived_download.value.save_as(archive)
-    assert len(json.loads(archive.read_text())['objectives']) == len(imported['objectives'])
+    assert len(json.loads(archive.read_text(encoding='utf-8'))['objectives']) == len(imported['objectives'])
     assert not errors, errors
     print(f'PASS: topic coverage, year/search/status filters, progress persistence, evidence escaping, source checks, revision scheduling, practical records, backup round trip, invalid input, mobile layout, manual objectives, actual PDF extraction and import. {len(backup["objectives"])} prompts.')
     browser.close()

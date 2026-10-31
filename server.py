@@ -185,7 +185,7 @@ class Handler(SimpleHTTPRequestHandler):
             pdf = self.rfile.read(size)
             if not pdf.startswith(b'%PDF-'):
                 return self.respond(400, {'error': 'This file is not a PDF.'})
-            known = json.loads((ROOT / 'official-data.json').read_text())
+            known = json.loads((ROOT / 'official-data.json').read_text(encoding='utf-8'))
             if hashlib.sha256(pdf).hexdigest() == known['metadata']['sha256']:
                 return self.respond(200, {'knownSpecification': True,
                                          'metadata': known['metadata']})

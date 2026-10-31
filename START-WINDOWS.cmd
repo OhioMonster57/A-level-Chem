@@ -2,8 +2,8 @@
 cd /d "%~dp0"
 where py >nul 2>nul
 if %errorlevel% equ 0 (
-    py -3 run_local.py
+    py -3 -X utf8 run_local.py
 ) else (
-    python run_local.py
+    python -X utf8 run_local.py
 )
 pause

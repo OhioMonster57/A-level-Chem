@@ -64,9 +64,9 @@ with sync_playwright() as p:
     with page.expect_download() as result:
         page.get_by_role('button',name='Export work history',exact=False).click()
     backup=OUT/'work-backup.json';result.value.save_as(backup)
-    data=json.loads(backup.read_text())
+    data=json.loads(backup.read_text(encoding='utf-8'))
     assert len(data['submissions'])==1 and len(data['submissions'][0]['questions'])==2
-    assert 'test-session-token' not in backup.read_text()
+    assert 'test-session-token' not in backup.read_text(encoding='utf-8')
     assert data['submissions'][0]['pages'][0]['dataUrl'].startswith('data:image/jpeg;')
     # A newer accepted repeat remains in history but replaces the previous question in the estimate.
     repeat=json.loads(json.dumps(data['submissions'][0]));repeat['id']='repeat-submission-test'
@@ -75,7 +75,7 @@ with sync_playwright() as p:
     repeat['questions'][0]['percentage']=100
     for criterion in repeat['questions'][0]['rubric']:criterion['earned']=criterion['possible']
     data['submissions'].append(repeat)
-    merged=OUT/'repeat-backup.json';merged.write_text(json.dumps(data))
+    merged=OUT/'repeat-backup.json';merged.write_text(json.dumps(data), encoding='utf-8')
     page.locator('#work-backup-file').set_input_files(merged)
     page.get_by_role('button',name='Merge work history').click()
     expect(page.locator('.work-topic-panel h2')).to_contain_text('67%')
@@ -96,7 +96,7 @@ with sync_playwright() as p:
     expect(page.locator('.work-topic-panel h2')).to_contain_text('60%')
     # Invalid imported scores cannot change the saved history.
     bad=json.loads(json.dumps(data));bad['submissions'][0]['questions'][0]['percentage']=999
-    badfile=OUT/'bad-work.json';badfile.write_text(json.dumps(bad))
+    badfile=OUT/'bad-work.json';badfile.write_text(json.dumps(bad), encoding='utf-8')
     page.locator('#work-backup-file').set_input_files(badfile)
     expect(page.locator('#toast')).to_contain_text('Invalid percentage')
     checklist_before=page.evaluate("localStorage.getItem('element-9ch0-v1')")

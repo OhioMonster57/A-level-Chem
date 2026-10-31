@@ -20,7 +20,7 @@ def joined(lines):
     return re.sub(r'\s+', ' ', ' '.join(lines)).strip()
 
 def parse(pdf=PDF):
-    text = subprocess.run(['pdftotext', '-layout', str(pdf), '-'], check=True, capture_output=True, text=True).stdout
+    text = subprocess.run(['pdftotext', '-layout', str(pdf), '-'], check=True, capture_output=True, text=True, encoding='utf-8').stdout
     pages = text.split('\f')
     rows, cores = [], []
     current = section = item = core = None
@@ -203,8 +203,8 @@ def parse(pdf=PDF):
 if __name__=='__main__':
     data=parse()
     out=ROOT/'app/official-data.json'
-    out.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
-    (ROOT/'app/official-data.js').write_text('/* Generated from the uploaded 9CH0 Issue 3 specification; see scripts/build_spec.py. */\nconst OFFICIAL_DATA = '+json.dumps(data,ensure_ascii=False,indent=2)+';\n')
+    out.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n', encoding='utf-8')
+    (ROOT/'app/official-data.js').write_text('/* Generated from the uploaded 9CH0 Issue 3 specification; see scripts/build_spec.py. */\nconst OFFICIAL_DATA = '+json.dumps(data,ensure_ascii=False,indent=2)+';\n', encoding='utf-8')
     audit={**data['metadata'],'checks':{'contiguousTopicNumbering':True,'all19TopicsPresent':True,'all16CorePracticalsPresent':True,'corePractical13BothParts':True,'all21MathCodesPresent':True,'retainedFullParentWording':True},'topicReferences':{str(t):[o['reference'] for o in data['objectives'] if o['topic']==t] for t in range(1,20)},'practicalReferences':[o['reference'] for o in data['objectives'] if o['category']=='practical'],'mathsReferences':[o['reference'] for o in data['objectives'] if o['category']=='maths'],'supportingMaterial':'Appendix 5d practical mapping, Appendix 7 command words and Appendix 8 data booklet are linked as PDF references, not counted as independent learning objectives. Introductory suggested activities are not numbered course objectives.','limits':'This audit concerns the supplied Issue 3 document, not later amendments, exam predictions or learner mastery. Typeset diagrams, chemical structures and equations remain available in the original PDF.'}
-    (ROOT/'app/coverage-audit.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
+    (ROOT/'app/coverage-audit.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n', encoding='utf-8')
     print(json.dumps(data['metadata'],indent=2))

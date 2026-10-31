@@ -8,7 +8,7 @@ from pathlib import Path
 import urllib.error
 import urllib.request
 
-DATA = json.loads((Path(__file__).parent / 'app/official-data.json').read_text())
+DATA = json.loads((Path(__file__).parent / 'app/official-data.json').read_text(encoding='utf-8'))
 OBJECTIVES = {o['reference']:o['topic'] for o in DATA['objectives'] if o['kind']=='objective'}
 DIMENSIONS = ['accuracy', 'completeness', 'reasoning', 'communication']
 MAX_BODY = 12 * 1024 * 1024
