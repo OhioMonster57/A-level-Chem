@@ -94,6 +94,7 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.call('/api/mark-work',{'pages':PAGES})[0],401)
             self.assertEqual(self.call('/api/mark-work',{'pages':PAGES},'test-token','https://untrusted.example')[0],403)
             self.assertEqual(self.call('/api/health',token='wrong')[0],401)
+            self.assertEqual(self.call('/api/import-spec',{'not':'a pdf'})[0],401)
             status,body,headers=self.call('/api/mark-work',{'pages':PAGES},'test-token')
             self.assertEqual(status,200)
             self.assertEqual(headers['Access-Control-Allow-Origin'],'https://ohiomonster57.github.io')

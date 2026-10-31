@@ -11,6 +11,7 @@ const n=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
 const uuid=()=>crypto.randomUUID();
 const pageById=(submission,id)=>submission.pages.find(p=>p.id===id);
 function backend(){try{return localStorage.getItem(SETTINGS)||(STATIC_HOSTING?'':location.origin);}catch{return STATIC_HOSTING?'':location.origin;}}
+window.markingAuthHeaders=()=>accessToken()?{'Authorization':'Bearer '+accessToken()}:{};
 function accessToken(){try{return sessionStorage.getItem(TOKEN)||'';}catch{return '';}}
 function normalURL(value){if(!value.trim())return '';const u=new URL(value.trim());if(u.username||u.password||u.search||u.hash||u.pathname!=='/'||!(u.protocol==='https:'||(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname))))throw Error('Use an HTTPS backend origin, such as https://your-backend.onrender.com, with no path or credentials.');return u.origin;}
 function openDB(){return new Promise((resolve,reject)=>{const request=indexedDB.open(DB_NAME,1);request.onupgradeneeded=()=>request.result.createObjectStore('submissions',{keyPath:'id'});request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(Error('Work history storage is unavailable in this browser.'));request.onblocked=()=>reject(Error('Close another tracker tab to unlock work history storage.'));});}

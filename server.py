@@ -163,6 +163,11 @@ class Handler(SimpleHTTPRequestHandler):
             return self.mark_work()
         if self.path != '/api/import-spec':
             return self.respond(404, {'error': 'Not found'})
+        if not self.origin_allowed():
+            return self.respond(403, {'error': 'Website origin not allowed.'})
+        token = os.environ.get('STUDY_ACCESS_TOKEN', '')
+        if token and not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer '+token).encode()):
+            return self.respond(401, {'error': 'Connect the backend access token before importing a PDF on this server.'})
         try:
             size = int(self.headers.get('Content-Length', '0'))
             if not 0 < size <= MAX_PDF:
