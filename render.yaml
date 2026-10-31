@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: element-chemistry-marking
+    runtime: docker
+    healthCheckPath: /api/health
+    envVars:
+      - key: STUDY_AI_API_KEY
+        sync: false
+      - key: STUDY_ACCESS_TOKEN
+        generateValue: true
+      - key: STUDY_ALLOWED_ORIGIN
+        value: https://ohiomonster57.github.io
+      - key: STUDY_AI_MODEL
+        value: gpt-4.1

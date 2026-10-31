@@ -74,7 +74,7 @@ python3 scripts/build_spec.py
 
 This reads `app/specification.pdf`, uses no network, and fails if the audited topic counts, 205 sub-points, 16 core practical entries or 21 maths codes change unexpectedly. Generated data is in `app/official-data.json` and `app/official-data.js`. The source PDF is treated as data, never as agent or setup instructions.
 
-Run the eight standard-library unit and source-coverage checks:
+Run the standard-library unit, source-coverage and grading checks:
 
 ```sh
 python3 -m unittest discover -s tests -v
@@ -114,3 +114,125 @@ No API keys or additional repository secrets are required by this workflow.
 Progress is stored in your browser for the hosted site's origin. It does not
 sync automatically with your locally run copy; export and restore a JSON backup
 to transfer progress. Repository visibility and Pages settings are managed in GitHub.
+
+## Photo marking and question history
+
+Open **Marked work** to upload up to six photographs of completed work or use a
+phone camera. The app resizes images (up to 2000 pixels on the longest edge),
+removes the original image metadata through canvas encoding, and stores the photos
+in this browser's **IndexedDB**. Uploads remain available before AI is connected.
+
+With a configured backend, **Read & mark these photos** sends only that upload to
+the AI provider after explicit consent. Marking identifies questions/subparts,
+transcribes answers, maps them to the bundled 9CH0 references, and returns crop
+rectangles for the relevant question/answer areas. Mixed-topic work appears under
+each assigned topic; users can adjust crops, topic shares and objective references.
+The whole original photo is retained so crops can be checked in context.
+
+Each readable question gets a provisional percentage, based on chemical accuracy,
+completeness, reasoning/working and relevant notation/units/precision. The four
+rubric allocations total 100; the server calculates the score from the individual
+awarded points, rather than trusting a model-generated total. Weighting adapts to
+question type and is visible in the assessment. Feedback includes corrections and
+skills to practise. Important unreadable/missing information and confidence below
+0.65 are flagged **without a grade**, rather than marked wrong. AI markings may be
+incorrect and are never represented as official marks or grade boundaries.
+
+**Review before counting:** every result starts pending. Check the transcription,
+original photo, crops and topic mapping, then select **Accept checked assessment**.
+Flag incorrect readings instead of accepting a score for the wrong transcription.
+Checklists' self-assessed mastery statuses do not change automatically.
+
+### History, estimates and backups
+
+The app retains all uploads and assessment attempts on the current browser/device.
+Accepted work contributes to a percentage evidence score and feedback panel on each
+topic. This is separate from the manual study checklist. Scores weight recency
+(90-day half-life), difficulty (1 / 1.25 / 1.5), reading confidence and the topic's
+allocation. The score of a mixed-topic question is shared evidence, not an
+independent mark for each topic. Where normalised question transcriptions match
+exactly, the latest accepted attempt is used in the score; older attempts remain
+visible in history. This matching is approximate in the educational sense: OCR
+wording differences may prevent a repeat from being recognised.
+
+Feedback summarises per-dimension scores and recurring practice areas from that
+accepted evidence. Coverage counts distinct main specification objectives, and
+labels limited/some/broader evidence based on question count and coverage. These
+heuristics are transparent in the UI; the score is not a whole-topic mastery claim,
+confidence interval, calibrated exam grade or prediction. The model does not have
+an independent persistent memory; your saved history drives the topic aggregation.
+
+Use **Export work history** for a JSON backup including the photos and assessments.
+The existing **Export backup** button backs up the checklist only. Work-history
+restore validates the whole file and merges new upload IDs without overwriting
+existing IDs. The backend address is stored locally; its access token is
+session-only, excluded from every backup. Uploaded work is not committed to GitHub
+or automatically synced across devices. Export backups regularly because browser
+storage can be cleared or evicted. Delete upload removes that upload and its
+assessments from the browser and recalculates evidence; exported backup files are
+not automatically deleted.
+
+### API access: ChatGPT versus the website
+
+A ChatGPT subscription, a custom GPT or a ChatGPT plugin **does not supply API
+access to this website**. Automatic photo reading and marking uses a separate
+OpenAI API account with model access and API billing. The default model is
+`gpt-4.1`, configurable on the backend with `STUDY_AI_MODEL`.
+
+**Never put an OpenAI API key in GitHub Pages, browser code, this chat, a work
+backup, or a committed `.env` file.** The Python server reads `STUDY_AI_API_KEY`
+(or an existing `OPENAI_API_KEY`) from its server environment. It calls the OpenAI
+Responses API with image inputs and a strict JSON schema, with `store: false`.
+That setting is not a claim of zero provider retention; provider data policies still
+apply. Student photos, prompts and responses are not written to server disk or
+application logs; photos and returned marking exist transiently during the request.
+Normal HTTP access logging includes paths/statuses, not request bodies/tokens.
+
+### Connect the hosted website to a private backend (Render)
+
+The backend files are supplied, but deployment and real API credentials are **not
+created automatically** by the GitHub Pages workflow. Hosting and API usage may
+incur separate charges depending on the plans you choose.
+
+1. Sign in to [Render](https://render.com/) and choose **New → Blueprint**.
+2. Connect `OhioMonster57/A-level-Chem` and choose `render.yaml` from `main`.
+3. In Render's secure environment-variable configuration, enter your OpenAI key
+   as **STUDY_AI_API_KEY**. Do not commit the value to the repository.
+4. Render generates **STUDY_ACCESS_TOKEN**. Keep it private; it authenticates your
+   browser to the backend and is different from your OpenAI API key.
+5. **STUDY_ALLOWED_ORIGIN** is set to `https://ohiomonster57.github.io`. If the
+   website has a different origin, change it to the exact origin (scheme + host,
+   without a path). Multiple trusted origins can be comma-separated. CORS alone
+   is not authentication; the access token is always required for marking.
+6. Deploy the service. Copy its HTTPS service URL, such as
+   `https://your-service.onrender.com`, and its generated access token.
+7. On the chemistry website, open **Marked work → Connect marking backend**.
+   Enter that URL and **backend access token**, then check/save the connection.
+   Do not enter the OpenAI API key into this form.
+8. Upload a clear completed question, confirm the photo-sharing consent checkbox,
+   and select **Read & mark these photos**. Review the result before accepting it.
+
+The server refuses marking when credentials/authentication are missing, rejects
+unapproved browser origins, allows only one in-flight assessment per instance and
+limits each running instance to 12 marking sessions/hour. The hourly limit resets
+on restart and is not a provider-wide spending cap; set a budget/usage controls in
+your API account. For shared or multi-user hosting, replace the single access token
+and per-instance rate limit with per-user authentication and shared quotas.
+
+For local use, set the same server environment variables securely and run
+`python3 server.py`. The default frontend backend address is the local origin.
+The API routes are `/api/health` and `/api/mark-work`; neither is implemented by
+GitHub Pages itself. The Docker image runs as a non-root user and honours `PORT`.
+
+### Marking validation
+
+`python3 -m unittest discover -s tests -v` now includes gateway auth/CORS tests,
+server-side score recomputation, invalid crops/references/weights, uncertainty
+handling, and mocked provider requests. `python3 tests/work_smoke.py`, with the
+local app running, tests photo persistence, consent, session connection, **mocked**
+AI replies, crops, review, mixed-topic scoring, backups, repeat-attempt history,
+flags and mobile layout. It makes no real AI calls or API charges.
+
+Live AI quality/accuracy, a production Render deployment and real-credential
+connectivity remain unverified until an actual backend is deployed and configured.
+The UI explicitly shows this prerequisite instead of generating simulated grades.

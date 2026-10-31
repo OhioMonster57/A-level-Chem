@@ -4,12 +4,20 @@ from pathlib import Path
 import argparse
 import hashlib
 import json
+import hmac
+import os
 import re
 import subprocess
 import tempfile
+import threading
+import time
+from urllib.parse import urlsplit
+import grading
 
 ROOT = Path(__file__).parent / 'app'
 MAX_PDF = 15 * 1024 * 1024
+GRADE_LOCK = threading.Lock()
+GRADE_TIMES = []
 
 
 def extract_objectives(text):
@@ -71,6 +79,12 @@ class Handler(SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Referrer-Policy', 'no-referrer')
+        origin = self.headers.get('Origin', '')
+        if origin and self.origin_allowed():
+            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Vary', 'Origin')
+            self.send_header('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         super().end_headers()
 
     def respond(self, status, data):
@@ -78,10 +92,75 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
         self.end_headers()
         self.wfile.write(body)
 
+    def origin_allowed(self):
+        origin = self.headers.get('Origin', '')
+        if not origin:
+            return True
+        allowed = {s.strip() for s in os.environ.get('STUDY_ALLOWED_ORIGIN', '').split(',') if s.strip()}
+        parsed = urlsplit(origin)
+        return origin in allowed or (parsed.scheme in ('http', 'https') and parsed.netloc == self.headers.get('Host'))
+
+    def do_OPTIONS(self):
+        if not self.origin_allowed():
+            return self.respond(403, {'error': 'This website origin is not allowed by the marking backend.'})
+        self.send_response(204)
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path == '/api/health':
+            if not self.origin_allowed():
+                return self.respond(403, {'error': 'Website origin not allowed.'})
+            provided = self.headers.get('Authorization', '')
+            expected = os.environ.get('STUDY_ACCESS_TOKEN', '')
+            if provided and (not expected or not hmac.compare_digest(provided.encode(), ('Bearer '+expected).encode())):
+                return self.respond(401, {'error': 'The backend access token is incorrect.'})
+            return self.respond(200, {'configured': bool(grading.ai_key() and os.environ.get('STUDY_ACCESS_TOKEN')),
+                                      'model': os.environ.get('STUDY_AI_MODEL', 'gpt-4.1'),
+                                      'rubric_version': grading.RUBRIC_VERSION})
+        return super().do_GET()
+
+    def mark_work(self):
+        if not self.origin_allowed():
+            return self.respond(403, {'error': 'Add this website origin to STUDY_ALLOWED_ORIGIN on your backend.'})
+        token = os.environ.get('STUDY_ACCESS_TOKEN', '')
+        if not token or not grading.ai_key():
+            return self.respond(503, {'error': 'Marking is not configured. Set STUDY_AI_API_KEY and STUDY_ACCESS_TOKEN securely on the backend.'})
+        if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer '+token).encode()):
+            return self.respond(401, {'error': 'The backend access token is missing or incorrect. Reconnect in Marked work settings.'})
+        try:
+            size = int(self.headers.get('Content-Length', '0'))
+        except ValueError:
+            return self.respond(400, {'error': 'Invalid upload size.'})
+        if not 0 < size <= grading.MAX_BODY:
+            return self.respond(413, {'error': 'The marking upload is too large. Use fewer or smaller photos.'})
+        if not GRADE_LOCK.acquire(blocking=False):
+            return self.respond(429, {'error': 'Another marking session is running. Please wait before retrying.'})
+        try:
+            now = time.monotonic()
+            GRADE_TIMES[:] = [t for t in GRADE_TIMES if now-t < 3600]
+            if len(GRADE_TIMES) >= 12:
+                return self.respond(429, {'error': 'This backend has reached its limit of 12 marking sessions per hour. Try again later.'})
+            payload = json.loads(self.rfile.read(size))
+            grading.validate_pages(payload)
+            GRADE_TIMES.append(now)
+            result = grading.grade(payload)
+            return self.respond(200, result)
+        except grading.GradingError as error:
+            return self.respond(error.status, {'error': str(error)})
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return self.respond(400, {'error': 'The marking request was not valid JSON.'})
+        except Exception:
+            return self.respond(502, {'error': 'Marking could not be completed. Your saved photos and history are unchanged.'})
+        finally:
+            GRADE_LOCK.release()
+
     def do_POST(self):
+        if self.path == '/api/mark-work':
+            return self.mark_work()
         if self.path != '/api/import-spec':
             return self.respond(404, {'error': 'Not found'})
         try:
@@ -117,7 +196,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=3000)
+    parser.add_argument('--port', type=int, default=int(os.environ.get('PORT', '3000')))
     parser.add_argument('--host', default='0.0.0.0')
     args = parser.parse_args()
     print(f'Chemistry tracker listening on port {args.port}', flush=True)

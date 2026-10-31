@@ -6,7 +6,7 @@
   <meta name="description" content="A personal Edexcel A level Chemistry study tracker. Track topics, evidence and revision against your specification.">
   <title>Element — Chemistry study tracker</title>
   <link rel="stylesheet" href="style.css">
-  <script src="deployment-config.js" defer></script><script src="data.js" defer></script><script src="official-data.js" defer></script><script src="app.js" defer></script>
+  <script src="deployment-config.js" defer></script><script src="data.js" defer></script><script src="official-data.js" defer></script><script src="app.js" defer></script><script src="work.js" defer></script>
 </head>
 <body>
 <div class="shell">
@@ -18,7 +18,7 @@
       <a href="#overview" data-nav="overview"><span>◫</span>Overview</a>
       <a href="#syllabus" data-nav="syllabus"><span>▤</span>Topic checklist<span class="nav-count">19</span></a>
       <a href="#revision" data-nav="revision"><span>↻</span>Revision queue<span class="nav-count" id="due-count">0</span></a>
-      <div class="nav-divider"></div>
+      <a href="#work" data-nav="work"><span>▧</span>Marked work<span class="nav-count">NEW</span></a><div class="nav-divider"></div>
       <a href="#practical" data-nav="practical"><span><svg width="18" height="20" viewBox="0 0 20 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M7 2h6M8 2v7L2 19q-1 3 3 3h10q4 0 3-3L12 9V2M5 15h10"/></svg></span>Practical skills</a>
       <a href="#maths" data-nav="maths"><span>ƒ</span>Maths skills</a>
       <a href="#sources" data-nav="sources"><span>⌘</span>Specification & backup</a>
@@ -34,6 +34,10 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <dialog id="detail-dialog" aria-labelledby="detail-title"></dialog>
 <dialog id="import-dialog" aria-labelledby="import-title"></dialog>
+<dialog id="work-dialog" aria-labelledby="work-dialog-title"></dialog>
+<input id="work-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+<input id="work-camera" type="file" accept="image/*" capture="environment" hidden>
+<input id="work-backup-file" type="file" accept="application/json,.json" hidden>
 <input id="backup-file" type="file" accept="application/json,.json" hidden>
 <input id="pdf-file" type="file" accept="application/pdf,.pdf" hidden>
 </body></html>
