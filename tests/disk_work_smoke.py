@@ -1,5 +1,6 @@
 """Real local disk persistence and progress UI; AI reply explicitly mocked."""
 import asyncio
+from datetime import datetime, timezone, timedelta
 import hashlib
 import json
 import os
@@ -38,6 +39,7 @@ async def exercise(folder,port):
                 body=route.request.post_data_json;pid=body['pages'][0]['id']
                 await asyncio.sleep(2.5)
                 q={'label':'Q1','question_text':'Calculate an amount of substance.','student_answer':'Synthetic test answer','status':'graded','clarification':'','confidence':.9,'difficulty':'standard','regions':[{'page_id':pid,'x':0,'y':0,'width':1,'height':.6}], 'topics':[{'topic':5,'allocation':100,'objective_refs':['5.7']}], 'rubric':[{'dimension':d,'possible':v,'earned':v*.85,'feedback':'Test-only rationale'} for d,v in [('accuracy',50),('completeness',20),('reasoning',20),('communication',10)]], 'feedback':'Show units in the final result.','correction':'Use n = m/M.','skills_to_practice':['Record final units'],'percentage':85,'question_key':hashlib.sha256(b'calculate an amount of substance').hexdigest(),'rubric_version':'test-only'}
+                q['rubric'][0]['earned']=45.5;q['rubric'][2]['earned']=14
                 await route.fulfill(json={'questions':[q],'model':'MOCK-TEST-ONLY','rubric_version':'test-only'})
             await page.route('**/api/mark-work',mark)
             await page.goto(url+'/#work')
@@ -61,6 +63,19 @@ async def exercise(folder,port):
             await page.goto(url+'/#topic/5')
             await expect(page.locator('.topic-question-library article')).to_have_count(1)
             await expect(page.locator('.topic-question-library')).to_contain_text('85%')
+            await page.locator('.topic-question-library').get_by_role('button',name='Weakness',exact=True).click()
+            await expect(page.locator('#work-dialog')).to_contain_text('5.7 · Review point')
+            await expect(page.locator('#work-dialog')).to_contain_text('Knowledge tip:')
+            await expect(page.locator('#work-dialog')).to_contain_text('Show units in the final result.')
+            await expect(page.locator('#work-dialog')).to_contain_text('Reasoning & working')
+            await expect(page.locator('#work-dialog')).to_contain_text('not a fresh AI request')
+            await page.locator('#work-dialog [data-work-action="close"]').first.click()
+            await page.goto(url+'/#topic/2')
+            await page.locator('.topic-question-library').get_by_role('button',name='Weakness',exact=True).click()
+            await expect(page.locator('#work-dialog')).to_contain_text('Not enough evidence yet')
+            await expect(page.locator('#work-dialog .weakness-point')).to_have_count(0)
+            await page.keyboard.press('Escape')
+            await page.goto(url+'/#topic/5')
             await page.locator('[data-status]').first.select_option('confident')
             for _ in range(40):
                 disk=json.loads((data_dir/'checklist.json').read_text(encoding='utf-8'))
@@ -94,6 +109,18 @@ async def exercise(folder,port):
             await page.get_by_role('button',name='Copy previous browser history to folder').click()
             await expect(page.locator('#toast')).to_contain_text('copied to your study folder')
             assert (data_dir/'uploads/legacy-browser-copy/record.json').exists()
+            improved=json.loads(records[0].read_text(encoding='utf-8'));improved['id']='improved-upload'
+            improved['createdAt']=(datetime.now(timezone.utc)+timedelta(seconds=2)).isoformat()
+            improved['questions'][0]['id']='improved-question';improved['questions'][0]['percentage']=100
+            for criterion in improved['questions'][0]['rubric']:criterion['earned']=criterion['possible']
+            backup=folder/'improved-work.json';backup.write_text(json.dumps({'format':'element-marked-work','version':1,'submissions':[improved]}),encoding='utf-8')
+            await page.locator('#work-backup-file').set_input_files(backup)
+            await page.get_by_role('button',name='Merge work history').click()
+            await page.goto(url+'/#topic/5')
+            await page.locator('.topic-question-library').get_by_role('button',name='Weakness',exact=True).click()
+            await expect(page.locator('#work-dialog')).to_contain_text('No low-scoring areas identified')
+            await expect(page.locator('#work-dialog')).to_contain_text('Improvement in repeated questions')
+            await expect(page.locator('#work-dialog .weakness-point')).to_have_count(0)
             assert not errors,errors
             await browser.close()
         print('PASS: disk originals/crops/question files, real marking progress UI, persistent errors, topic library, confidence charts, checklist persistence, fresh browser and process restart. No AI calls.')

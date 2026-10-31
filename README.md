@@ -278,3 +278,22 @@ stored on the upload. No analysis output means no fabricated score.
 topic library, confidence charts, and restoration after both a process restart
 and a new browser context. Its provider replies are explicitly mocked. Live AI
 quality still requires a real configured account and remains provisional.
+
+## Topic Weakness review
+
+A **Weakness** button sits beside each topic's library/history controls. It opens
+an offline review built from accepted, readable question assessments for that topic:
+linked specification points, lower-scoring rubric dimensions, recorded mistakes,
+corrections, question links and subject-specific knowledge tips. No new API request
+or charge is made. Pending/flagged work is excluded. The latest accepted attempt of
+an exactly matching question drives current priorities; previous accepted attempts
+remain available and improvements are identified separately.
+
+Revision priority uses a latest question score below 85% or an applicable rubric
+dimension below 80%. These are study heuristics, not grade boundaries or a
+whole-topic diagnosis. Mixed-topic/multi-objective marks remain shared evidence.
+When there is no accepted evidence, the dialog says so rather than inventing
+weaknesses. When no latest attempt meets the low-score criteria, it points to
+uncovered objectives instead of claiming complete mastery. Tips are curated
+chemistry guidance selected using the question context and saved feedback, not a
+new AI-generated diagnosis; verify saved AI corrections against trusted notes.
