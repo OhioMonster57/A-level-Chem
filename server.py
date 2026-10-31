@@ -111,6 +111,16 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self.path == '/api/local-session':
+            host = self.headers.get('Host', '')
+            expected = f'127.0.0.1:{self.server.server_port}'
+            if (os.environ.get('STUDY_LOCAL_MODE') != '1'
+                    or self.client_address[0] != '127.0.0.1'
+                    or host != expected
+                    or self.headers.get('X-Element-Local') != '1'
+                    or (self.headers.get('Origin') and self.headers['Origin'] != 'http://'+expected)):
+                return self.respond(403, {'error': 'Local automatic connection is unavailable.'})
+            return self.respond(200, {'accessToken': os.environ.get('STUDY_ACCESS_TOKEN', ''), 'configured': bool(grading.ai_key())})
         if self.path == '/api/health':
             if not self.origin_allowed():
                 return self.respond(403, {'error': 'Website origin not allowed.'})

@@ -236,3 +236,14 @@ flags and mobile layout. It makes no real AI calls or API charges.
 Live AI quality/accuracy, a production Render deployment and real-credential
 connectivity remain unverified until an actual backend is deployed and configured.
 The UI explicitly shows this prerequisite instead of generating simulated grades.
+
+## One-computer local edition
+
+Download/extract the repository ZIP and read [LOCAL-START-HERE.md](LOCAL-START-HERE.md).
+Run **START-WINDOWS.cmd** on Windows or `python3 run_local.py` on Mac/Linux. The
+launcher securely prompts for an API key, generates a per-run backend token, binds
+only to 127.0.0.1, and opens the local browser with automatic backend connection.
+It never saves the API key to disk. No Render deployment or extra Python packages
+are needed for photo marking. `pdftotext` remains optional for importing a different
+specification PDF. Live provider marking still depends on a valid key, model access
+and API billing; all grading remains provisional.

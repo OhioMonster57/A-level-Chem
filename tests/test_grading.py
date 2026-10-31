@@ -99,6 +99,18 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(status,200)
             self.assertEqual(headers['Access-Control-Allow-Origin'],'https://ohiomonster57.github.io')
             self.assertEqual(mocked.call_count,1)
+    def test_local_session_is_disabled_by_default_and_same_origin_only(self):
+        with patch.dict(os.environ,{'STUDY_LOCAL_MODE':'','STUDY_ACCESS_TOKEN':'local-test'}):
+            self.assertEqual(self.call('/api/local-session',origin=self.url)[0],403)
+        with patch.dict(os.environ,{'STUDY_LOCAL_MODE':'1','STUDY_ACCESS_TOKEN':'local-test'}):
+            self.assertEqual(self.call('/api/local-session',origin=self.url)[0],403)
+            req=urllib.request.Request(self.url+'/api/local-session',headers={'X-Element-Local':'1','Origin':self.url})
+            with urllib.request.urlopen(req) as response:
+                self.assertEqual(json.load(response)['accessToken'],'local-test')
+            bad=urllib.request.Request(self.url+'/api/local-session',headers={'X-Element-Local':'1','Origin':'https://untrusted.example'})
+            with self.assertRaises(urllib.error.HTTPError) as error:urllib.request.urlopen(bad)
+            self.assertEqual(error.exception.code,403)
+
     def test_unconfigured_backend_is_honest(self):
         with patch.dict(os.environ,{'STUDY_AI_API_KEY':'','OPENAI_API_KEY':'','STUDY_ACCESS_TOKEN':''}):
             self.assertEqual(self.call('/api/mark-work',{'pages':PAGES},origin=self.url)[0],503)
